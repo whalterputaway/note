@@ -1,6 +1,7 @@
 from tkinter import *
 from tkinter import messagebox
 from tkinter import filedialog
+import configparser
 
 
 
@@ -9,7 +10,6 @@ main.title("AmTCD")
 main.option_add("*tearOff", FALSE)
 main_menu = Menu()
 current_file = None 
-buffer = None
 
 
 def about_programm():
@@ -40,25 +40,38 @@ def saveas_file():
     global current_file
     filepath = filedialog.asksaveasfilename(
         defaultextension=".txt",
-        filetypes=[("Text Files", "*.txtx"), ("All Files", "*.*")]
+        filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")]
     )
     if filepath:
         text = text_field.get("1.0", END)
-        with open(filepath, "w", encoding="utf-8") as file:
-            file.write(text)
+        config = configparser.ConfigParser()
+        config['main']={
+            'keyopen': "sssssssssss",
+            'mess': text
+        }
         current_file = filepath
+        with open(current_file, "w") as file:
+            config.write(file)
 
 def save_file():
     global current_file
     if current_file:
         text = text_field.get("1.0", END)
-        with open(current_file, "w", encoding="utf-8") as file:
-            file.write(text)
+        config = configparser.ConfigParser()
+        config['main']={
+            'keyopen': "sssssssssss",
+            'mess': text
+        }
+        with open(current_file, "w") as file:
+            config.write(file)
     else:
         saveas_file()
 
 def open_file():
-    filepath = filedialog.askopenfilename()
+    filepath = filedialog.askopenfilename(
+        defaultextension=".txt",
+        filetypes=[("Text Files", "*.txtx"), ("All Files", "*.*")]
+    )
     global current_file
     if filepath != "":
         with open(filepath, "r") as file:
@@ -95,15 +108,6 @@ ref_menu.add_command(label="О программе...",command=about_programm)
 main_menu.add_cascade(label="Файл", menu=file_menu)
 main_menu.add_cascade(label="Правка", menu=edit_menu)
 main_menu.add_cascade(label="Справка", menu=ref_menu)
-
-
-
-
-
-
-
-
-
 
 text_field = Text()
 text_field.pack(fill=BOTH, expand=1)
