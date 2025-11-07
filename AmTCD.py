@@ -2,6 +2,8 @@ from tkinter import *
 from tkinter import messagebox
 from tkinter import filedialog
 import configparser
+from functions import *
+import base64
 
 
 
@@ -10,6 +12,13 @@ main.title("AmTCD")
 main.option_add("*tearOff", FALSE)
 main_menu = Menu()
 current_file = None 
+
+
+
+config = configparser.ConfigParser()
+config.read('AmTCD.ini')
+master_key = config['main']['keyuser'].encode()
+
 
 
 def about_programm():
@@ -44,10 +53,11 @@ def saveas_file():
     )
     if filepath:
         text = text_field.get("1.0", END)
+        mass = encrypt_with_master(text,master_key)
         config = configparser.ConfigParser()
         config['main']={
-            'keyopen': "sssssssssss",
-            'mess': text
+            'keyopen': base64.b64encode(mass[1]).decode(),
+            'mess': base64.b64encode(mass[0]).decode()
         }
         current_file = filepath
         with open(current_file, "w") as file:
@@ -57,10 +67,11 @@ def save_file():
     global current_file
     if current_file:
         text = text_field.get("1.0", END)
+        mass = encrypt_with_master(text,master_key)
         config = configparser.ConfigParser()
         config['main']={
-            'keyopen': "sssssssssss",
-            'mess': text
+            'keyopen': base64.b64encode(mass[1]).decode(),
+            'mess': base64.b64encode(mass[0]).decode()
         }
         with open(current_file, "w") as file:
             config.write(file)
@@ -68,23 +79,21 @@ def save_file():
         saveas_file()
 
 def open_file():
+    global current_file
     filepath = filedialog.askopenfilename(
         defaultextension=".txt",
-        filetypes=[("Text Files", "*.txtx"), ("All Files", "*.*")]
+        filetypes=[("TCD Files", "*.txt"), ("All Files", "*.*")]
     )
-    global current_file
-    if filepath != "":
-        with open(filepath, "r") as file:
-            text =file.read()
-            text_field.delete("1.0", END)
-            text_field.insert("1.0", text)
+    if not filepath:
+        return
+    config = configparser.ConfigParser()
+    config.read(filepath)
+    keyopen = base64.b64decode(config['main']['keyopen'])
+    mess = base64.b64decode(config['main']['mess'])
+    decrypted = decrypt_with_master(mess, keyopen, master_key)
+    text_field.delete("1.0", END)
+    text_field.insert("1.0", decrypted)
     current_file = filepath
-
-
-
-
-
-
 
 file_menu = Menu()
 file_menu.add_command(label="Новый",command=new_win)
