@@ -1,26 +1,31 @@
+import secrets
 from tkinter import *
-from tkinter import messagebox
-from tkinter import filedialog
+from tkinter import messagebox, filedialog
 import configparser
 from functions import *
 import base64
-
-
-
 main = Tk()
 main.title("AmTCD")
 main.option_add("*tearOff", FALSE)
 main_menu = Menu()
 current_file = None 
-
-
-
 config = configparser.ConfigParser()
 config.read('AmTCD.ini')
 master_key = config['main']['keyuser'].encode()
-
-
-
+def xor_bytes(data: bytes, key: bytes) -> bytes:
+    result = bytearray()
+    for i in range(len(data)):
+        result.append(data[i] ^ key[i % len(key)])
+    return bytes(result)
+def encrypt_with_master(plaintext: str, master_key: bytes):
+    file_key = secrets.token_bytes(32)
+    encrypted_text = xor_bytes(plaintext.encode('utf-8'), file_key)
+    encrypted_file_key = xor_bytes(file_key, master_key)
+    return encrypted_text, encrypted_file_key
+def decrypt_with_master(encrypted_text: bytes, encrypted_file_key: bytes, master_key: bytes):
+    file_key = xor_bytes(encrypted_file_key, master_key)
+    decrypted_text = xor_bytes(encrypted_text, file_key)
+    return decrypted_text.decode('utf-8')
 def about_programm():
     messagebox.showinfo("О программе", "Программа для 'прозрачного шифрования'\n© Nguyen T., Russia, 2025'")
 def click_reference():
@@ -30,60 +35,42 @@ def click_reference():
     label = Label(reference,text='Приложение с графическим интерфейсом\n"Блокнот TCD" (файл приложения: TCD).\nПозволяет: создавать / открывать / сохранять\nзашифрованный текстовый файл, предусмотернны\nвывод не модальной формы "Справка",\nвывод модальной формы "О программе".',justify="left")
     label.place(x=5,y=5)
     close_button = Button(reference, text="OK",width=7,height=1, command=reference.destroy).place(x=275,y=130)
-
 def copy():
     text = text_field.get("sel.first", "sel.last")
     text_field.clipboard_clear()     
     text_field.clipboard_append(text) 
-
 def paste():
     text = text_field.clipboard_get()  
     text_field.insert("insert", text)  
-
 def new_win():
     global current_file
     text_field.delete("1.0", END)
     current_file = None
-
 def saveas_file():
     global current_file
-    filepath = filedialog.asksaveasfilename(
-        defaultextension=".txt",
-        filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")]
-    )
+    filepath = filedialog.asksaveasfilename(defaultextension=".txt",filetypes=[("Текстовые файлы", "*.txt"), ("Все файлы", "*.*")])
     if filepath:
         text = text_field.get("1.0", END)
         mass = encrypt_with_master(text,master_key)
         config = configparser.ConfigParser()
-        config['main']={
-            'keyopen': base64.b64encode(mass[1]).decode(),
-            'mess': base64.b64encode(mass[0]).decode()
-        }
+        config['main']={'keyopen': base64.b64encode(mass[1]).decode(),'mess': base64.b64encode(mass[0]).decode()}
         current_file = filepath
         with open(current_file, "w") as file:
             config.write(file)
-
 def save_file():
     global current_file
     if current_file:
         text = text_field.get("1.0", END)
         mass = encrypt_with_master(text,master_key)
         config = configparser.ConfigParser()
-        config['main']={
-            'keyopen': base64.b64encode(mass[1]).decode(),
-            'mess': base64.b64encode(mass[0]).decode()
-        }
+        config['main']={'keyopen': base64.b64encode(mass[1]).decode(),'mess': base64.b64encode(mass[0]).decode()}
         with open(current_file, "w") as file:
             config.write(file)
     else:
         saveas_file()
-
 def open_file():
     global current_file
-    filepath = filedialog.askopenfilename(
-        defaultextension=".txt",
-        filetypes=[("TCD Files", "*.txt"), ("All Files", "*.*")]
-    )
+    filepath = filedialog.askopenfilename(defaultextension=".txt",filetypes=[("Текстовые файлы", "*.txt"), ("Все файлы", "*.*")])
     if not filepath:
         return
     config = configparser.ConfigParser()
@@ -94,32 +81,16 @@ def open_file():
     text_field.delete("1.0", END)
     text_field.insert("1.0", decrypted)
     current_file = filepath
-
-file_menu = Menu()
-file_menu.add_command(label="Новый",command=new_win)
-file_menu.add_command(label="Открыть",command=open_file)
-file_menu.add_command(label="Сохранить",command=save_file)
-file_menu.add_command(label="Сохранить как", command=saveas_file)
-file_menu.add_separator()
-file_menu.add_command(label="Выход",command=main.destroy)
-
-edit_menu = Menu()
-edit_menu.add_command(label="Копировать",command=copy)
-edit_menu.add_command(label="Вставить",command=paste)
-edit_menu.add_separator()
-edit_menu.add_command(label="Параметры...")
-
-ref_menu = Menu()
-ref_menu.add_command(label="Cодержание",command=click_reference)
-ref_menu.add_separator()
-ref_menu.add_command(label="О программе...",command=about_programm)
-
-main_menu.add_cascade(label="Файл", menu=file_menu)
-main_menu.add_cascade(label="Правка", menu=edit_menu)
-main_menu.add_cascade(label="Справка", menu=ref_menu)
-
+menus = {"Файл": {"Новый": new_win,"Открыть": open_file,"Сохранить": save_file,"Сохранить как":saveas_file,"-": None,"Выход": main.destroy},"Правка": {"Копировать": copy,"Вставить": paste,"-": None,"Параметры...": lambda: None},"Справка": {"Содержание": click_reference,"-": None,"О программе...": about_programm}}
+for menu_name, items in menus.items():
+    menu = Menu(main_menu, tearoff=0)
+    for label, cmd in items.items():
+        if label == "-":
+            menu.add_separator()
+        else:
+            menu.add_command(label=label, command=cmd)
+    main_menu.add_cascade(label=menu_name, menu=menu)
 text_field = Text()
 text_field.pack(fill=BOTH, expand=1)
-
 main.config(menu=main_menu)
 main.mainloop()
