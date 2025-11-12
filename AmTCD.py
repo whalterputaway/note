@@ -2,8 +2,9 @@ import secrets
 from tkinter import *
 from tkinter import messagebox, filedialog
 import configparser
-from functions import *
 import base64
+import webbrowser
+import os
 main = Tk()
 main.title("AmTCD")
 main.option_add("*tearOff", FALSE)
@@ -12,6 +13,17 @@ current_file = None
 config = configparser.ConfigParser()
 config.read('AmTCD.ini')
 master_key = config['main']['keyuser'].encode()
+def show_help(event="None"):
+    help_window = Toplevel(main)
+    help_window.title("Справочная информация")
+    help_window.geometry("695x150+600+350")
+    help_window.transient(main)
+    help_window.grab_set()
+    about = Label(help_window, text="Слова благодарности: Хотел бы выразить огромное спасибо Папе и Маме, за все что они для меня сделали и не сделали!\n © Нгуен Чыонг 2025.",anchor="w")
+    about.place(x=5,y=5)
+def open_html_page():
+    file_path = os.path.abspath("index.html")
+    webbrowser.open(f"file://{file_path}")
 def xor_bytes(data: bytes, key: bytes) -> bytes:
     result = bytearray()
     for i in range(len(data)):
@@ -81,7 +93,7 @@ def open_file():
     text_field.delete("1.0", END)
     text_field.insert("1.0", decrypted)
     current_file = filepath
-menus = {"Файл": {"Новый": new_win,"Открыть": open_file,"Сохранить": save_file,"Сохранить как":saveas_file,"-": None,"Выход": main.destroy},"Правка": {"Копировать": copy,"Вставить": paste,"-": None,"Параметры...": lambda: None},"Справка": {"Содержание": click_reference,"-": None,"О программе...": about_programm}}
+menus = {"Файл": {"Новый": new_win,"Открыть": open_file,"Сохранить": save_file,"Сохранить как":saveas_file,"-": None,"Выход": main.destroy},"Правка": {"Копировать": copy,"Вставить": paste,"-": None,"Параметры...": lambda: None},"Справка": {"Содержание": open_html_page,"-": None,"О программе...": about_programm}}
 for menu_name, items in menus.items():
     menu = Menu(main_menu, tearoff=0)
     for label, cmd in items.items():
@@ -92,5 +104,6 @@ for menu_name, items in menus.items():
     main_menu.add_cascade(label=menu_name, menu=menu)
 text_field = Text()
 text_field.pack(fill=BOTH, expand=1)
+main.bind('<F1>', show_help)
 main.config(menu=main_menu)
 main.mainloop()
